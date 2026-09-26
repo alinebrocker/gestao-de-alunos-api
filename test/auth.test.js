@@ -1,16 +1,17 @@
+import { readFileSync } from 'node:fs';
 import request from 'supertest';
 import { expect } from 'chai';
 import mongoose from 'mongoose';
 import app from '../src/app.js';
+import { login, loginAdmin, loginAluno } from './helpers/auth.js';
+
+const testData = JSON.parse(readFileSync(new URL('./data/auth-data.json', import.meta.url), 'utf8'));
 
 describe('Autenticação e cadastro', () => {
   let token;
 
   before(async () => {
-    const respostaLogin = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'admin@escola.com', senha: 'admin123' });
-
+    const respostaLogin = await loginAdmin();
     token = respostaLogin.body.token;
   });
 
@@ -18,42 +19,23 @@ describe('Autenticação e cadastro', () => {
     await mongoose.connection.close();
   });
 
-  it('deve retornar 200 e um token quando o admin informar e-mail e senha corretos', async () => {
-    const resposta = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'admin@escola.com', senha: 'admin123' });
+  testData.validLogins.forEach(({ name, email, senha, role }) => {
+    it(`deve retornar 200 e um token quando o ${name} informar e-mail e senha corretos`, async () => {
+      const resposta = await login({ email, senha });
 
-    expect(resposta.status).to.equal(200);
-    expect(resposta.body).to.have.property('token');
-    expect(resposta.body.usuario.role).to.equal('admin');
+      expect(resposta.status).to.equal(200);
+      expect(resposta.body).to.have.property('token');
+      expect(resposta.body.usuario.role).to.equal(role);
+    });
   });
 
-  it('deve retornar 200 e um token quando o aluno informar e-mail e senha corretos', async () => {
-    const resposta = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'ana.souza@example.com', senha: '123456' });
+  testData.invalidLogins.forEach(({ name, email, senha, expectedStatus, expectedError }) => {
+    it(`deve retornar ${expectedStatus} quando ${name} informar senha inválida`, async () => {
+      const resposta = await login({ email, senha });
 
-    expect(resposta.status).to.equal(200);
-    expect(resposta.body).to.have.property('token');
-    expect(resposta.body.usuario.role).to.equal('aluno');
-  });
-
-  it('deve retornar 401 quando a senha informada for inválida', async () => {
-    const resposta = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'admin@escola.com', senha: 'senha-incorreta' });
-
-    expect(resposta.status).to.equal(401);
-    expect(resposta.body.error).to.equal('E-mail ou senha inválidos.');
-  });
-
-  it('deve retornar 401 quando o aluno informar senha inválida', async () => {
-    const resposta = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'ana.souza@example.com', senha: 'senha-incorreta' });
-
-    expect(resposta.status).to.equal(401);
-    expect(resposta.body.error).to.equal('E-mail ou senha inválidos.');
+      expect(resposta.status).to.equal(expectedStatus);
+      expect(resposta.body.error).to.equal(expectedError);
+    });
   });
 
   it('deve cadastrar um aluno quando o administrador informa dados válidos', async () => {
@@ -79,9 +61,7 @@ describe('Autenticação e cadastro', () => {
   });
 
   it('deve registrar a entrega de um trabalho quando o aluno está autenticado e matriculado', async () => {
-    const loginAluno = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'ana.souza@example.com', senha: '123456' });
+    const loginAlunoAtual = await loginAluno();
 
     const payload = {
       disciplinaId: 'disciplina-matematica',
@@ -91,7 +71,7 @@ describe('Autenticação e cadastro', () => {
 
     const resposta = await request(app)
       .post('/api/alunos/aluno-ana-souza/trabalhos')
-      .set('Authorization', `Bearer ${loginAluno.body.token}`)
+      .set('Authorization', `Bearer ${loginAlunoAtual.body.token}`)
       .send(payload);
 
     expect(resposta.status).to.equal(201);
@@ -105,9 +85,7 @@ describe('Autenticação e cadastro', () => {
   });
 
   it('deve impedir que o aluno entregue trabalho em disciplina não matriculada', async () => {
-    const loginAluno = await request(app)
-      .post('/api/auth/login')
-      .send({ email: 'ana.souza@example.com', senha: '123456' });
+    const loginAlunoAtual = await loginAluno();
 
     const payload = {
       disciplinaId: 'disciplina-historia',
@@ -117,7 +95,7 @@ describe('Autenticação e cadastro', () => {
 
     const resposta = await request(app)
       .post('/api/alunos/aluno-ana-souza/trabalhos')
-      .set('Authorization', `Bearer ${loginAluno.body.token}`)
+      .set('Authorization', `Bearer ${loginAlunoAtual.body.token}`)
       .send(payload);
 
     expect(resposta.status).to.equal(409);

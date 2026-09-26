@@ -1,0 +1,32 @@
+{
+  "validLogins": [
+    {
+      "name": "admin",
+      "email": "admin@escola.com",
+      "senha": "admin123",
+      "role": "admin"
+    },
+    {
+      "name": "aluno",
+      "email": "ana.souza@example.com",
+      "senha": "123456",
+      "role": "aluno"
+    }
+  ],
+  "invalidLogins": [
+    {
+      "name": "admin",
+      "email": "admin@escola.com",
+      "senha": "senha-incorreta",
+      "expectedStatus": 401,
+      "expectedError": "E-mail ou senha inválidos."
+    },
+    {
+      "name": "aluno",
+      "email": "ana.souza@example.com",
+      "senha": "senha-incorreta",
+      "expectedStatus": 401,
+      "expectedError": "E-mail ou senha inválidos."
+    }
+  ]
+}
