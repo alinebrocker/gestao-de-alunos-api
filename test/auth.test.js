@@ -77,4 +77,50 @@ describe('Autenticação e cadastro', () => {
     });
     expect(resposta.body).to.not.have.property('senha');
   });
+
+  it('deve registrar a entrega de um trabalho quando o aluno está autenticado e matriculado', async () => {
+    const loginAluno = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ana.souza@example.com', senha: '123456' });
+
+    const payload = {
+      disciplinaId: 'disciplina-matematica',
+      titulo: `Entrega de teste ${Date.now()}`,
+      descricao: 'Entrega do trabalho via teste automatizado.',
+    };
+
+    const resposta = await request(app)
+      .post('/api/alunos/aluno-ana-souza/trabalhos')
+      .set('Authorization', `Bearer ${loginAluno.body.token}`)
+      .send(payload);
+
+    expect(resposta.status).to.equal(201);
+    expect(resposta.body).to.include({
+      alunoId: 'aluno-ana-souza',
+      disciplinaId: payload.disciplinaId,
+      titulo: payload.titulo,
+      descricao: payload.descricao,
+      status: 'entregue',
+    });
+  });
+
+  it('deve impedir que o aluno entregue trabalho em disciplina não matriculada', async () => {
+    const loginAluno = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'ana.souza@example.com', senha: '123456' });
+
+    const payload = {
+      disciplinaId: 'disciplina-historia',
+      titulo: `Trabalho fora da matrícula ${Date.now()}`,
+      descricao: 'Tentativa de entrega em disciplina não cursada.',
+    };
+
+    const resposta = await request(app)
+      .post('/api/alunos/aluno-ana-souza/trabalhos')
+      .set('Authorization', `Bearer ${loginAluno.body.token}`)
+      .send(payload);
+
+    expect(resposta.status).to.equal(409);
+    expect(resposta.body.error).to.equal('O aluno não está matriculado nesta disciplina.');
+  });
 });
