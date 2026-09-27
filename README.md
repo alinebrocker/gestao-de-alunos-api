@@ -39,10 +39,76 @@ banco está vazio (veja [Dados fake pré-carregados](#dados-fake-pré-carregados
 - **swagger-ui-express** — renderização do Swagger UI a partir do YAML
 - **cors** — liberação de CORS para consumo por outros clientes/origens
 - **morgan** — log de requisições HTTP no console
+- **dotenv** — carregamento de variáveis de ambiente a partir de um arquivo `.env`
 - **nodemon** (dependência de desenvolvimento) — reinício automático do servidor durante o
   desenvolvimento
+- **Mocha + Chai + Supertest** — automação de testes de API
 
 A autenticação é real: senhas com hash (bcrypt) e sessões via JWT assinado.
+
+## Testes automatizados
+
+O projeto possui suíte de testes automatizados para os principais fluxos da API, incluindo login,
+cadastro, autenticação e entrega de trabalhos.
+
+### Estrutura dos testes
+
+```text
+test/
+  auth.test.js
+  data/
+    auth-data.json
+  helpers/
+    auth.js
+```
+
+### Padrão adotado
+
+- **Data-Driven Testing**: dados de login e cenários de autenticação ficam em arquivos JSON em
+  `test/data`.
+- **Helpers de autenticação**: funções reutilizáveis para login de admin e aluno foram criadas em
+  `test/helpers/auth.js`.
+- **Bibliotecas**: `Mocha`, `Chai` e `Supertest` para testar as rotas HTTP reais da API.
+
+### Exemplos cobertos
+
+- login como administrador
+- login como aluno
+- tentativa de login com senha inválida
+- cadastro de aluno pelo administrador
+- registro de entrega de trabalho por aluno matriculado
+- bloqueio de entrega em disciplina não matriculada
+
+Para executar:
+
+```bash
+npm test
+```
+
+### Configuração de ambiente
+
+O projeto usa `dotenv` para carregar variáveis de ambiente a partir de um arquivo `.env`.
+
+Exemplo:
+
+```env
+PORT=3000
+MONGODB_URI=mongodb://127.0.0.1:27017/gestao-de-alunos
+```
+
+## GitHub Actions (CI)
+
+A pipeline de integração contínua foi configurada em `.github/workflows/ci.yml` para executar a
+suíte de testes em cada `push` e `pull request`, além de permitir execução manual via
+`workflow_dispatch`.
+
+O workflow:
+
+- instala as dependências com `npm ci`
+- inicia um MongoDB em container
+- executa `npm test`
+
+Isso garante um cheque automatizado da API a cada alteração enviada ao repositório.
 
 ## Arquitetura do código
 
