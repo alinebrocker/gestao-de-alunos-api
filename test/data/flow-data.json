@@ -1,0 +1,69 @@
+{
+  "loginRequest": {
+    "method": "POST",
+    "path": "/api/auth/login"
+  },
+  "scenarios": [
+    {
+      "name": "o administrador cadastrar um aluno e esse aluno autenticado entregar um trabalho",
+      "admin": {
+        "credentials": {
+          "email": "admin@escola.com",
+          "senha": "admin123"
+        },
+        "expectedStatus": 200,
+        "tokenProperty": "token"
+      },
+      "registration": {
+        "path": "/api/admin/alunos",
+        "payload": {
+          "nome": "Aluno Fluxo Encadeado",
+          "email": "aluno.fluxo.{timestamp}@example.com",
+          "matricula": "2026{timestamp}",
+          "senha": "123456"
+        },
+        "expectedStatus": 201,
+        "idProperty": "id",
+        "expectedBody": {
+          "nome": "Aluno Fluxo Encadeado",
+          "email": "aluno.fluxo.{timestamp}@example.com",
+          "matricula": "2026{timestamp}"
+        }
+      },
+      "enrollment": {
+        "method": "POST",
+        "path": "/api/admin/disciplinas/disciplina-matematica/matriculas",
+        "payload": {
+          "alunoId": "{alunoId}"
+        },
+        "expectedStatus": 201,
+        "expectedBody": {
+          "disciplinaId": "disciplina-matematica"
+        }
+      },
+      "studentLogin": {
+        "expectedStatus": 200,
+        "tokenProperty": "token",
+        "userProperty": "usuario",
+        "idProperty": "id"
+      },
+      "delivery": {
+        "method": "POST",
+        "path": "/api/alunos/{alunoId}/trabalhos",
+        "payload": {
+          "disciplinaId": "disciplina-matematica",
+          "titulo": "Entrega encadeada {timestamp}",
+          "descricao": "Trabalho enviado pelo aluno criado neste mesmo teste."
+        },
+        "expectedStatus": 201,
+        "expectedBody": {
+          "alunoId": "{alunoId}",
+          "disciplinaId": "disciplina-matematica",
+          "titulo": "Entrega encadeada {timestamp}",
+          "descricao": "Trabalho enviado pelo aluno criado neste mesmo teste.",
+          "status": "entregue"
+        }
+      }
+    }
+  ]
+}

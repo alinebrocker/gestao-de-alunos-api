@@ -56,8 +56,10 @@ cadastro, autenticação e entrega de trabalhos.
 ```text
 test/
   auth.test.js
+  flow.test.js
   data/
     auth-data.json
+    flow-data.json
   helpers/
     auth.js
 ```
@@ -65,8 +67,9 @@ test/
 ### Padrão adotado
 
 - **Data-Driven Testing**: credenciais, payloads, rotas e resultados esperados dos cenários ficam
-  em `test/data/auth-data.json`. Os marcadores de timestamp nesse arquivo são resolvidos durante a
-  execução para manter únicos os dados de cadastro e entrega.
+  nos arquivos `test/data/auth-data.json` e `test/data/flow-data.json`. Os marcadores de timestamp
+  nesses arquivos são resolvidos durante a execução para manter únicos os dados de cadastro e
+  entrega.
 - **Helpers de autenticação**: funções reutilizáveis para login de admin e aluno foram criadas em
   `test/helpers/auth.js`.
 - **Bibliotecas**: `Mocha`, `Chai` e `Supertest` para testar as rotas HTTP reais da API.
@@ -79,18 +82,27 @@ test/
 - cadastro de aluno pelo administrador
 - registro de entrega de trabalho por aluno matriculado
 - bloqueio de entrega em disciplina não matriculada
+- fluxo encadeado de cadastro de aluno, matrícula, login desse aluno e entrega de trabalho
 
 ### Sequência dos fluxos de autenticação
 
-Os testes estão em [`test/auth.test.js`](test/auth.test.js) e exercitam a API usando tokens JWT:
+Os testes exercitam a API usando tokens JWT. Os cenários individuais estão em
+[`test/auth.test.js`](test/auth.test.js):
 
 - **Administrador:** um `before` faz login com `loginAdmin()` e guarda o token para os testes do
   bloco. Em seguida, o teste de cadastro envia os dados do novo aluno para `POST /api/admin/alunos`
   usando esse token. O login e o cadastro fazem parte da mesma execução da suíte, mas ficam em
   etapas separadas: o login não está dentro do mesmo `it` que cadastra o aluno.
 - **Aluno:** no mesmo `it`, o teste chama `loginAluno()`, usa o token recebido e envia a entrega
-  para `POST /api/alunos/aluno-ana-souza/trabalhos`. Esse fluxo verifica o registro de um trabalho
-  para uma disciplina em que o aluno está matriculado.
+  para `POST /api/alunos/aluno-ana-souza/trabalhos`, verificando uma disciplina em que esse aluno
+  seed está matriculado.
+
+O fluxo encadeado está em [`test/flow.test.js`](test/flow.test.js) e usa os cenários de
+[`test/data/flow-data.json`](test/data/flow-data.json). Em um único teste, `loginAdmin()` autentica
+o administrador, que cadastra e matricula um novo aluno. Em seguida, `loginAluno()` autentica esse
+mesmo aluno com as credenciais recém-cadastradas, e o aluno registra a entrega usando seu próprio
+token. A matrícula é necessária porque a API só aceita entregas em disciplinas nas quais o aluno
+está matriculado.
 
 Para executar:
 
