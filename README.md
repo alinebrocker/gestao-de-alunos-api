@@ -79,6 +79,18 @@ test/
 - registro de entrega de trabalho por aluno matriculado
 - bloqueio de entrega em disciplina não matriculada
 
+### Sequência dos fluxos de autenticação
+
+Os testes estão em [`test/auth.test.js`](test/auth.test.js) e exercitam a API usando tokens JWT:
+
+- **Administrador:** um `before` faz login com `loginAdmin()` e guarda o token para os testes do
+  bloco. Em seguida, o teste de cadastro envia os dados do novo aluno para `POST /api/admin/alunos`
+  usando esse token. O login e o cadastro fazem parte da mesma execução da suíte, mas ficam em
+  etapas separadas: o login não está dentro do mesmo `it` que cadastra o aluno.
+- **Aluno:** no mesmo `it`, o teste chama `loginAluno()`, usa o token recebido e envia a entrega
+  para `POST /api/alunos/aluno-ana-souza/trabalhos`. Esse fluxo verifica o registro de um trabalho
+  para uma disciplina em que o aluno está matriculado.
+
 Para executar:
 
 ```bash
