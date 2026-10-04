@@ -7,12 +7,31 @@ import { login, loginAdmin, loginAluno } from './helpers/auth.js';
 
 const testData = JSON.parse(readFileSync(new URL('./data/auth-data.json', import.meta.url), 'utf8'));
 
+function resolveTestData(data, timestamp) {
+  if (typeof data === 'string') {
+    return data.replaceAll('{timestamp}', timestamp).replaceAll('{timestamp6}', timestamp.slice(-6));
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((entry) => resolveTestData(entry, timestamp));
+  }
+
+  if (data && typeof data === 'object') {
+    return Object.fromEntries(
+      Object.entries(data).map(([key, entry]) => [key, resolveTestData(entry, timestamp)]),
+    );
+  }
+
+  return data;
+}
+
 describe('Autenticação e cadastro', () => {
   let token;
 
   before(async () => {
-    const respostaLogin = await loginAdmin();
-    token = respostaLogin.body.token;
+    const admin = testData.validLogins.find(({ role }) => role === testData.roles.admin);
+    const respostaLogin = await loginAdmin(admin, testData.loginRequest);
+    token = respostaLogin.body[testData.validLoginExpectations.tokenProperty];
   });
 
   after(async () => {
@@ -20,85 +39,64 @@ describe('Autenticação e cadastro', () => {
   });
 
   testData.validLogins.forEach(({ name, email, senha, role }) => {
-    it(`deve retornar 200 e um token quando o ${name} informar e-mail e senha corretos`, async () => {
-      const resposta = await login({ email, senha });
+    it(
+      `deve retornar ${testData.validLoginExpectations.expectedStatus} e um token quando o ${name} informar e-mail e senha corretos`,
+      async () => {
+        const resposta = await login({ email, senha }, testData.loginRequest);
+        const expectations = testData.validLoginExpectations;
 
-      expect(resposta.status).to.equal(200);
-      expect(resposta.body).to.have.property('token');
-      expect(resposta.body.usuario.role).to.equal(role);
-    });
+        expect(resposta.status).to.equal(expectations.expectedStatus);
+        expect(resposta.body).to.have.property(expectations.tokenProperty);
+        expect(resposta.body[expectations.userProperty][expectations.roleProperty]).to.equal(role);
+      },
+    );
   });
 
   testData.invalidLogins.forEach(({ name, email, senha, expectedStatus, expectedError }) => {
     it(`deve retornar ${expectedStatus} quando ${name} informar senha inválida`, async () => {
-      const resposta = await login({ email, senha });
+      const resposta = await login({ email, senha }, testData.loginRequest);
 
       expect(resposta.status).to.equal(expectedStatus);
       expect(resposta.body.error).to.equal(expectedError);
     });
   });
 
-  it('deve cadastrar um aluno quando o administrador informa dados válidos', async () => {
-    const payload = {
-      nome: 'Aluno Teste Cadastro',
-      email: `aluno.teste.${Date.now()}@example.com`,
-      matricula: `2024${String(Date.now()).slice(-6)}`,
-      senha: '123456',
-    };
+  it(`deve ${testData.studentRegistration.name}`, async () => {
+    const timestamp = String(Date.now());
+    const scenario = resolveTestData(testData.studentRegistration, timestamp);
 
     const resposta = await request(app)
-      .post('/api/admin/alunos')
+      [scenario.method.toLowerCase()](scenario.path)
       .set('Authorization', `Bearer ${token}`)
-      .send(payload);
+      .send(scenario.payload);
 
-    expect(resposta.status).to.equal(201);
-    expect(resposta.body).to.include({
-      nome: payload.nome,
-      email: payload.email,
-      matricula: payload.matricula,
-    });
-    expect(resposta.body).to.not.have.property('senha');
-  });
-
-  it('deve registrar a entrega de um trabalho quando o aluno está autenticado e matriculado', async () => {
-    const loginAlunoAtual = await loginAluno();
-
-    const payload = {
-      disciplinaId: 'disciplina-matematica',
-      titulo: `Entrega de teste ${Date.now()}`,
-      descricao: 'Entrega do trabalho via teste automatizado.',
-    };
-
-    const resposta = await request(app)
-      .post('/api/alunos/aluno-ana-souza/trabalhos')
-      .set('Authorization', `Bearer ${loginAlunoAtual.body.token}`)
-      .send(payload);
-
-    expect(resposta.status).to.equal(201);
-    expect(resposta.body).to.include({
-      alunoId: 'aluno-ana-souza',
-      disciplinaId: payload.disciplinaId,
-      titulo: payload.titulo,
-      descricao: payload.descricao,
-      status: 'entregue',
+    expect(resposta.status).to.equal(scenario.expectedStatus);
+    expect(resposta.body).to.include(scenario.expectedBody);
+    scenario.excludedResponseProperties.forEach((property) => {
+      expect(resposta.body).to.not.have.property(property);
     });
   });
 
-  it('deve impedir que o aluno entregue trabalho em disciplina não matriculada', async () => {
-    const loginAlunoAtual = await loginAluno();
+  const credenciaisAluno = testData.validLogins.find(({ role }) => role === testData.roles.student);
 
-    const payload = {
-      disciplinaId: 'disciplina-historia',
-      titulo: `Trabalho fora da matrícula ${Date.now()}`,
-      descricao: 'Tentativa de entrega em disciplina não cursada.',
-    };
+  testData.workDeliveries.forEach((workDelivery) => {
+    it(`deve ${workDelivery.name}`, async () => {
+      const timestamp = String(Date.now());
+      const scenario = resolveTestData(workDelivery, timestamp);
+      const respostaLogin = await loginAluno(credenciaisAluno, testData.loginRequest);
+      const tokenAluno = respostaLogin.body[testData.validLoginExpectations.tokenProperty];
+      const resposta = await request(app)
+        [scenario.method.toLowerCase()](scenario.path)
+        .set('Authorization', `Bearer ${tokenAluno}`)
+        .send(scenario.payload);
 
-    const resposta = await request(app)
-      .post('/api/alunos/aluno-ana-souza/trabalhos')
-      .set('Authorization', `Bearer ${loginAlunoAtual.body.token}`)
-      .send(payload);
-
-    expect(resposta.status).to.equal(409);
-    expect(resposta.body.error).to.equal('O aluno não está matriculado nesta disciplina.');
+      expect(resposta.status).to.equal(scenario.expectedStatus);
+      if (scenario.expectedBody) {
+        expect(resposta.body).to.include(scenario.expectedBody);
+      }
+      if (scenario.expectedError) {
+        expect(resposta.body.error).to.equal(scenario.expectedError);
+      }
+    });
   });
 });

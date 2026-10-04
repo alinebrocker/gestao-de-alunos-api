@@ -1,4 +1,8 @@
 {
+  "loginRequest": {
+    "method": "POST",
+    "path": "/api/auth/login"
+  },
   "validLogins": [
     {
       "name": "admin",
@@ -13,6 +17,16 @@
       "role": "aluno"
     }
   ],
+  "roles": {
+    "admin": "admin",
+    "student": "aluno"
+  },
+  "validLoginExpectations": {
+    "expectedStatus": 200,
+    "tokenProperty": "token",
+    "userProperty": "usuario",
+    "roleProperty": "role"
+  },
   "invalidLogins": [
     {
       "name": "admin",
@@ -27,6 +41,56 @@
       "senha": "senha-incorreta",
       "expectedStatus": 401,
       "expectedError": "E-mail ou senha inválidos."
+    }
+  ],
+  "studentRegistration": {
+    "name": "cadastrar um aluno quando o administrador informa dados válidos",
+    "method": "POST",
+    "path": "/api/admin/alunos",
+    "payload": {
+      "nome": "Aluno Teste Cadastro",
+      "email": "aluno.teste.{timestamp}@example.com",
+      "matricula": "2024{timestamp6}",
+      "senha": "123456"
+    },
+    "expectedStatus": 201,
+    "expectedBody": {
+      "nome": "Aluno Teste Cadastro",
+      "email": "aluno.teste.{timestamp}@example.com",
+      "matricula": "2024{timestamp6}"
+    },
+    "excludedResponseProperties": ["senha"]
+  },
+  "workDeliveries": [
+    {
+      "name": "registrar a entrega de um trabalho quando o aluno está autenticado e matriculado",
+      "method": "POST",
+      "path": "/api/alunos/aluno-ana-souza/trabalhos",
+      "payload": {
+        "disciplinaId": "disciplina-matematica",
+        "titulo": "Entrega de teste {timestamp}",
+        "descricao": "Entrega do trabalho via teste automatizado."
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "alunoId": "aluno-ana-souza",
+        "disciplinaId": "disciplina-matematica",
+        "titulo": "Entrega de teste {timestamp}",
+        "descricao": "Entrega do trabalho via teste automatizado.",
+        "status": "entregue"
+      }
+    },
+    {
+      "name": "impedir que o aluno entregue trabalho em disciplina não matriculada",
+      "method": "POST",
+      "path": "/api/alunos/aluno-ana-souza/trabalhos",
+      "payload": {
+        "disciplinaId": "disciplina-historia",
+        "titulo": "Trabalho fora da matrícula {timestamp}",
+        "descricao": "Tentativa de entrega em disciplina não cursada."
+      },
+      "expectedStatus": 409,
+      "expectedError": "O aluno não está matriculado nesta disciplina."
     }
   ]
 }

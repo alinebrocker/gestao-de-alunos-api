@@ -2,9 +2,10 @@ name: Testes de API
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
-    branches: [main]
+    branches: ['**']
+  workflow_dispatch:
 
 jobs:
   test:
@@ -21,11 +22,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    env:
+      MONGODB_URI: mongodb://127.0.0.1:27017/gestao-de-alunos
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -36,5 +40,3 @@ jobs:
 
       - name: Executar testes
         run: npm test
-        env:
-          MONGODB_URI: mongodb://127.0.0.1:27017/gestao-de-alunos-test

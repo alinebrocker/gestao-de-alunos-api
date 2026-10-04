@@ -64,8 +64,9 @@ test/
 
 ### Padrão adotado
 
-- **Data-Driven Testing**: dados de login e cenários de autenticação ficam em arquivos JSON em
-  `test/data`.
+- **Data-Driven Testing**: credenciais, payloads, rotas e resultados esperados dos cenários ficam
+  em `test/data/auth-data.json`. Os marcadores de timestamp nesse arquivo são resolvidos durante a
+  execução para manter únicos os dados de cadastro e entrega.
 - **Helpers de autenticação**: funções reutilizáveis para login de admin e aluno foram criadas em
   `test/helpers/auth.js`.
 - **Bibliotecas**: `Mocha`, `Chai` e `Supertest` para testar as rotas HTTP reais da API.
@@ -110,8 +111,8 @@ MONGODB_URI=mongodb://127.0.0.1:27017/gestao-de-alunos
 
 ## GitHub Actions (CI)
 
-A pipeline de integração contínua foi configurada em `.github/workflows/ci.yml` para executar a
-suíte de testes em cada `push` e `pull request`, além de permitir execução manual via
+A pipeline de integração contínua está configurada em `.github/workflows/tests.yml` e executa a
+suíte de testes em `push` e `pull request` para qualquer branch. Também permite execução manual via
 `workflow_dispatch`.
 
 O workflow:
